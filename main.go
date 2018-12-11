@@ -142,12 +142,9 @@ func cropImage(r image.Rectangle) error {
 	draw.Draw(memimg, memimg.Bounds(), srcimg, image.Point{0, 0}, draw.Src)
 	newimg := memimg.SubImage(r)
 
-	var cropBuf bytes.Buffer
+	buf.Reset()
+	err = jpeg.Encode(&buf, newimg, nil)
 
-	err = jpeg.Encode(&cropBuf, newimg, nil)
-	if err != nil {
-		buf = cropBuf
-	}
 	return err
 }
 
@@ -155,12 +152,14 @@ func uploadImage(s *session.Session) error {
 
 	fileName := time.Now().Format(time.RFC3339) + ".jpeg"
 
+	len := buf.Len()
+
 	_, err := s3.New(s).PutObject(&s3.PutObjectInput{
 		Bucket:               aws.String(s3Bucket),
 		Key:                  aws.String(fileName),
 		ACL:                  aws.String("private"),
 		Body:                 bytes.NewReader(buf.Bytes()),
-		ContentLength:        aws.Int64(int64(buf.Len())),
+		ContentLength:        aws.Int64(int64(len)),
 		ContentType:          aws.String(http.DetectContentType(buf.Bytes())),
 		ContentDisposition:   aws.String("attachment"),
 		ServerSideEncryption: aws.String("AES256"),
