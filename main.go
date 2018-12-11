@@ -118,6 +118,7 @@ func processSnapshot(s *session.Session) {
 
 func fetchImage() error {
 	url := imageURL
+	buf.Reset()
 
 	response, err := http.Get(url)
 	if err != nil {
@@ -164,8 +165,6 @@ func uploadImage(s *session.Session) error {
 		ContentDisposition:   aws.String("attachment"),
 		ServerSideEncryption: aws.String("AES256"),
 	})
-
-	buf.Reset()
 
 	return err
 }
