@@ -6,10 +6,12 @@ import (
 	"flag"
 	"image"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +28,9 @@ import (
 var imageURL string
 var s3Region string
 var s3Bucket string
+var directory string
+var sleepHour int
+var wakeHour int
 var rect string
 var r image.Rectangle
 
@@ -35,6 +40,9 @@ func init() {
 	flag.StringVar(&imageURL, "imageURL", "", "The URL of the image to fetch.")
 	flag.StringVar(&s3Region, "s3Region", "us-east-1", "The AWS region to use.")
 	flag.StringVar(&s3Bucket, "s3Bucket", "", "The S3 bucket name (not the ARN) to upload the snapshots to.")
+	flag.StringVar(&directory, "dir", "", "The local directory to store the captures images in.")
+	flag.IntVar(&sleepHour, "sleepHour", 0, "The hour to pause image capture (0-23)")
+	flag.IntVar(&wakeHour, "wakeHour", 0, "The hour to resume image capture (0-23)")
 	flag.StringVar(&rect, "rect", "", "The x/y coordinates that define the rectangle to use to crop in the form of x,y,x,y")
 }
 
@@ -58,9 +66,13 @@ func main() {
 		r = image.Rect(ripoints[0], ripoints[1], ripoints[2], ripoints[3])
 	}
 
-	s, err := session.NewSession(&aws.Config{Region: aws.String(s3Region)})
-	if err != nil {
-		log.Fatal("Error initializing AWS Session", err)
+	var err error
+	s := &session.Session{}
+	if s3Bucket != "" {
+		s, err = session.NewSession(&aws.Config{Region: aws.String(s3Region)})
+		if err != nil {
+			log.Fatal("Error initializing AWS Session", err)
+		}
 	}
 
 	ctx := context.Background()
@@ -87,7 +99,16 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			processSnapshot(s)
+			hour := time.Now().Hour()
+			// Ex, sleep hour is like 22 and wake hour is 7
+			if (sleepHour > wakeHour) && (hour < sleepHour && hour >= wakeHour) {
+				processSnapshot(s)
+			} else if (sleepHour < wakeHour) && (hour < sleepHour || hour >= wakeHour) { // Ex sleep 1, wake 7
+				processSnapshot(s)
+			} else { // Both the same, so don't sleep.
+				processSnapshot(s)
+			}
+
 		case <-ctx.Done():
 			return
 		}
@@ -106,11 +127,17 @@ func processSnapshot(s *session.Session) {
 		if err != nil {
 			log.Println("Crop failed.", err.Error())
 		} else {
-			err := uploadImage(s)
-			if err != nil {
-				log.Println("Error uploading image to s3", err)
-			} else {
-				log.Println("Upload Successful")
+			b := buf.Bytes()
+			if directory != "" {
+				saveImage(b)
+			}
+			if s3Bucket != "" {
+				err := uploadImage(s, b)
+				if err != nil {
+					log.Println("Error uploading image to s3", err)
+				} else {
+					log.Println("Upload Successful")
+				}
 			}
 		}
 	}
@@ -149,22 +176,29 @@ func cropImage(r image.Rectangle) error {
 	return err
 }
 
-func uploadImage(s *session.Session) error {
+func uploadImage(s *session.Session, b []byte) error {
 
 	fileName := time.Now().Format(time.RFC3339) + ".jpeg"
 
-	len := buf.Len()
+	len := len(b)
 
 	_, err := s3.New(s).PutObject(&s3.PutObjectInput{
 		Bucket:               aws.String(s3Bucket),
 		Key:                  aws.String(fileName),
 		ACL:                  aws.String("private"),
-		Body:                 bytes.NewReader(buf.Bytes()),
+		Body:                 bytes.NewReader(b),
 		ContentLength:        aws.Int64(int64(len)),
-		ContentType:          aws.String(http.DetectContentType(buf.Bytes())),
+		ContentType:          aws.String(http.DetectContentType(b)),
 		ContentDisposition:   aws.String("attachment"),
 		ServerSideEncryption: aws.String("AES256"),
 	})
 
 	return err
+}
+
+func saveImage(b []byte) error {
+
+	fileName := path.Join(directory, time.Now().Format(time.RFC3339)+".jpeg")
+
+	return ioutil.WriteFile(fileName, b, 0644)
 }
