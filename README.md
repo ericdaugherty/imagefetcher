@@ -1,6 +1,6 @@
 # Image Fetcher
 [![Go Report Card](https://goreportcard.com/badge/github.com/ericdaugherty/imagefetcher)](https://goreportcard.com/report/github.com/ericdaugherty/imagefetcher)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/ericdaugherty/imagefetcher/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/ericdaugherty/imagefetcher/blob/master/LICENSE)
 
 ImageFetcher fetches an image from a URL, crops it, and uploads it to an S3 bucket or stores it locally (or both).
 
