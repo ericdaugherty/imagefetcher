@@ -169,6 +169,9 @@ func fetchImage() error {
 func cropImage(r image.Rectangle) error {
 
 	srcimg, _, err := image.Decode(&buf)
+	if err != nil {
+		return err
+	}
 
 	memimg := image.NewRGBA(srcimg.Bounds())
 
