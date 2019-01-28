@@ -99,20 +99,25 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			hour := time.Now().Hour()
-			// Ex, sleep hour is like 22 and wake hour is 7
-			if (sleepHour > wakeHour) && (hour < sleepHour && hour >= wakeHour) {
-				processSnapshot(s)
-			} else if (sleepHour < wakeHour) && (hour < sleepHour || hour >= wakeHour) { // Ex sleep 1, wake 7
-				processSnapshot(s)
-			} else { // Both the same, so don't sleep.
+			if isAwake(time.Now(), sleepHour, wakeHour) {
 				processSnapshot(s)
 			}
-
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func isAwake(now time.Time, sleepHour int, wakeHour int) bool {
+	hour := now.Hour()
+	if (sleepHour > wakeHour) && (hour < sleepHour && hour >= wakeHour) {
+		return true
+	} else if (sleepHour < wakeHour) && (hour < sleepHour || hour >= wakeHour) { // Ex sleep 1, wake 7
+		return true
+	} else if sleepHour == wakeHour { // Both the same, so don't sleep.
+		return true
+	}
+	return false
 }
 
 func processSnapshot(s *session.Session) {
