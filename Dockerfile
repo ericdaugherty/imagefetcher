@@ -23,10 +23,9 @@ RUN CGO_ENABLED=0 go build \
     -o /app .
 
 # Final stage: the running container.
-FROM scratch AS final
+FROM alpine AS final
 
-# Import the Certificate-Authority certificates for enabling HTTPS.
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+RUN apk add --no-cache tzdata ca-certificates
 
 # Import the compiled executable from the first stage.
 COPY --from=builder /app /app
