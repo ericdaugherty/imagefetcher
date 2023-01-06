@@ -1,3 +1,5 @@
 module github.com/ericdaugherty/imagefetcher
 
-require github.com/aws/aws-sdk-go v1.16.2
+require github.com/aws/aws-sdk-go v1.33.0
+
+require github.com/jmespath/go-jmespath v0.3.0 // indirect
